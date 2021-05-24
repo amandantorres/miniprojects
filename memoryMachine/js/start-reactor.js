@@ -1,9 +1,9 @@
 startReactor = {
-  computedCombination: [], // array do jogo para armazenar a sequência correta
+  computerCombination: [], // array do jogo para armazenar a sequência correta
   playerCombination: [], // array do user para armazenar a sequência dele
-  computedCombinationPosition: 1,// quando começa as combinações
+  computerCombinationPosition: 1,// quando começa as combinações
   combinationMaxPosition: 5, //verificar se chegou no limite dos botôes de sequência
-  memoryCombination: 9,//máximo de combinações de memórias (botões de memória do container)
+  memoryMaxCombination: 9,//máximo de combinações de memórias (botões de memória do container)
 
   audio: {
     start: 'start.mp3',
@@ -34,11 +34,11 @@ startReactor = {
   interface: {
 
     //Variaveis recebendo o DOM para manipular a interface
-    memoryPanel: document.querySelector('.painelMemory'),
-    computerLedPanel: document.querySelector('.computerLedPanel'),
-    playerLedPanel: document.querySelector('.playerLedPanel'),
-    painelMemory: document.querySelector('.painelMemory'),
-    painelMemoryButtons: document.getElementsByClassName('painelMemory'),
+    memoryPanel: document.querySelector(".painelMemory"),
+    computerLedPanel: document.querySelector(".computerLedPanel"),
+    playerLedPanel: document.querySelector(".playerLedPanel"),
+    playerMemory: document.querySelector(".playerMemory"),
+    playerMemoryButtons: document.getElementsByClassName("player_memory"),
 
     //ascender a luz do painel quando ligar
     turnLedOn(index, ledPanel) {
@@ -46,13 +46,13 @@ startReactor = {
     },
 
     //apagar todas as luzes
-    turnAllLedsOf() {
+    turnAllLedsOff() {
       const computerLedPanel = startReactor.interface.computerLedPanel // painel do computador
       const playerLedPanel = startReactor.interface.playerLedPanel//painel do usuário
 
-      for (let i = 0; i < computerLedPanel.children.length; i++) {
-        computerLedPanel.children[i].classList.remove('ledOn')
-        playerLedPanel.children[i].classList.remove('ledOn') // remove classes do usuario e apaga todas as luzes
+      for (var i = 0; i < computerLedPanel.children.length; i++) {
+        computerLedPanel.children[i].classList.remove("ledOn");
+        playerLedPanel.children[i].classList.remove("ledOn"); // remove classes do usuario e apaga todas as luzes
       }
     },
 
@@ -67,7 +67,7 @@ startReactor = {
       const leds = (location == 'computer') ? startReactor.interface.computerLedPanel : startReactor.interface.playerLedPanel
       const memPanel = startReactor.interface.memoryPanel.children[index] //armazena a posição do objeto
 
-      memPanel.classList.add('memoryActive') // adiciona a classe no objeto, p/  acender a luz no container
+      memPanel.classList.add("memoryActive") // adiciona a classe no objeto, p/  acender a luz no container
       startReactor.interface.turnLedOn(combinationPosition, leds) //passa a combinação para ascender
       startReactor.audio.combinations[index].play().then(() => {
         setTimeout(() => {
@@ -144,10 +144,32 @@ startReactor = {
 
   },
 
-  load() { },
+  async load() {
+    return new Promise(resolve => {
+      console.log("Loading Game...")
+      startReactor.audio.loadAudios()
+
+      const playerMemory = startReactor.interface.playerMemory //associando o evento de click
+      const memory = startReactor.interface.playerMemoryButtons //associando o evento de click
+      // console.log("Array", Array.prototype)
+      Array.prototype.forEach.call(memory, (element) => { //acessando os elementos do dom pelo prototype do array
+
+        element.addEventListener("click", () => {
+          if (playerMemory.classList.contains("playerActive")) {//verifica se o painel dos botões estiver ativa
+            startReactor.play(parseInt(element.dataset.memory)) //pegar o data-memory, qual botão está apertando
+            // console.log("O valor do elemento clicado é: " + element.dataset.memory)
+
+            element.style.animation = "playermemoryClick .4s" //chama o nome da animação e o tempo q será executada
+            setTimeout(() => element.style.animation = "", 400)//remove a ação depois de 400 milesegundos
+          }
+        })
+
+      })
+    })
+  },
   start() {
-    startReactor.computedCombination = startReactor.createCombination()//pega a função que vai criar um combinação de nomes e armazena na variavel
-    startReactor.computedCombinationPosition = 1 //verifica se estão zeradas as combinações quando inicia
+    startReactor.computerCombination = startReactor.createCombination()//pega a função que vai criar um combinação de nomes e armazena na variavel
+    startReactor.computerCombinationPosition = 1 //verifica se estão zeradas as combinações quando inicia
     startReactor.playerCombination = [] //verifica se estão zeradas as combinações quando inicia
     //Inciando e resetando a luz e iniciando o audio novamente
     startReactor.interface.start().then(() => {
@@ -160,14 +182,72 @@ startReactor = {
   createCombination() { // criar combinação randomica de acordo com o tamanho máximo de posições.
     let newCombination = []
     for (let n = 0; n < startReactor.combinationMaxPosition; n++) {
-      const position = Math.floor((Math.radom() * startReactor.memoryCombination) + 1)
+      const position = Math.floor((Math.random() * startReactor.memoryMaxCombination) + 1)
       newCombination.push(position - 1)
     }
     return newCombination
   },
 
-  playCombination() {
+  play(index) {
 
-  }
+    startReactor.interface.playItem(index, startReactor.playerCombination.length, 'player') //pega exatamente a posição q está jogando, no caso o player(jogador)
+    startReactor.playerCombination.push(index)// pega a posição e adiciona dentro do array do jogador
+
+    if (startReactor.isTheRightCombination(startReactor.playerCombination.length)) {//verifica a combinação e quantidade
+
+      if (startReactor.playerCombination.length == startReactor.combinationMaxPosition) {//comparar se completou as combinações...
+        startReactor.interface.endGame("complete")
+        setTimeout(() => {
+          startReactor.start()
+        }, 1200)
+        return
+      }
+
+      if (startReactor.playerCombination.length == startReactor.computerCombinationPosition) {//se a sequência foi correta, vai adicionando mas combinações
+        startReactor.computerCombinationPosition++
+        setTimeout(() => {
+          startReactor.playCombination() //a cada sequência ele chama a função de sons por combinações
+        }, 1200)
+        return
+      }
+
+    } else { // se não foi correta a combinação, encerra na hora.
+
+      startReactor.interface.endGame("fail")
+      document.getElementById("title").textContent = "Você é o impostor"
+      setTimeout(() => {
+        document.getElementById("title").textContent = "START REACTOR"
+        startReactor.start()
+      }, 1400)
+      return
+    }
+  },
+
+  playCombination() { //adiciona sequência e toca o som respectivo
+
+    startReactor.playerCombination = []
+    startReactor.interface.disableButtons()
+    startReactor.interface.turnAllLedsOff()
+
+    for (let i = 0; i <= startReactor.computerCombinationPosition - 1; i++) {
+
+      setTimeout(() => {
+        startReactor.interface.playItem(startReactor.computerCombination[i], i)
+      }, 400 * (i + 1))// para todas tudo de uma vez, ele vai sempre adicionar o tempo p/ tocar
+    }
+
+    setTimeout(() => { //terminando o som, ele liberar o player p/ jogar...
+      startReactor.interface.turnAllLedsOff() // desliga as luzes
+      startReactor.interface.enableButtons() //habilita novamente o botão
+    }, 600 * startReactor.computerCombinationPosition)
+
+  },
+
+  isTheRightCombination(position) {// vai receber a posição que está o jogo
+
+    let computerCombination = startReactor.computerCombination.slice(0, position) // "quebra o array do computador para comparar melhor a sequência"
+    return (computerCombination.toString() == startReactor.playerCombination.toString()) // melhor forma para comparar transformar os dois em string e comparar
+
+  },
 }
 
